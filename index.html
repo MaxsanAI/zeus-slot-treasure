@@ -62,7 +62,7 @@
 
         $(document).ready(function(){
             var oMain = new CMain({
-                start_credit:100,          
+                start_credit:300,          
                 min_reel_loop:0,           
                 reel_delay: 2,             
                 time_show_win:1200,        
@@ -94,7 +94,7 @@
                     alert("Loading Video... Credits will be added after watch.");
                 } else {
                     // Ako se igra u običnom browseru
-                    var iMoney = 100;
+                    var iMoney = 300;
                     refreshCredit(iMoney, s_oGame.refreshMoney, s_oGame);
                 }
             });
@@ -133,9 +133,9 @@
         // FUNKCIJA KOJU APPCREATOR24 AUTOMATSKI POZIVA NAKON ODGLEDANE REKLAME
         function onRewardedVideoFinished() {
             if(s_oGame){
-                var iRewardMoney = 500; // Nagrada za video
+                var iRewardMoney = 300; // Nagrada za video
                 refreshCredit(iRewardMoney, s_oGame.refreshMoney, s_oGame);
-                alert("Reward Received: 500 Credits!");
+                alert("Reward Received: 300 Credits!");
             }
         }
     </script>
