@@ -2,28 +2,31 @@ var TOTAL_MONEY;
 var START_MONEY;
 
 // *********** BALANCED GAME MATHEMATICS ***********
-var WIN_OCCURRENCE = 30;          // 30% chance to win (roughly every 3rd spin)
-var FREESPIN_OCCURRENCE = 15;     // 15% chance for Freespins (High retention)
-var BONUS_OCCURRENCE = 12;        // 12% chance for Zeus Bonus Game
-var SLOT_CASH = 500;              // Starting virtual house bank
+var WIN_OCCURRENCE = 30;          
+var FREESPIN_OCCURRENCE = 15;     
+var BONUS_OCCURRENCE = 12;        
+var SLOT_CASH = 300;              // Lowered so they lose faster
 
-var NUM_FREESPIN = [5, 10, 15];   // Number of spins for 3, 4, or 5 symbols
-var BONUS_PRIZE = [10, 20, 30, 50, 100]; // Bonus game multipliers
-var BONUS_PRIZE_OCCURRENCE = [45, 25, 15, 10, 5]; // Odds for each multiplier
-var MAX_PRIZES_BONUS = 3;         // Number of picks in bonus
+var NUM_FREESPIN = [5, 10, 15];   
+var BONUS_PRIZE = [10, 20, 30, 50, 100]; 
+var BONUS_PRIZE_OCCURRENCE = [45, 25, 15, 10, 5]; 
+var MAX_PRIZES_BONUS = 3;         
 
-var _iCoinBets = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]; // Bet options
+var _iCoinBets = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]; 
+
+// --- AD SETTINGS ---
+var iSpinCounter = 0; 
+var AD_SHOW_EVERY_X_SPINS = 25; // Trigger full-screen ad every 25 spins
 
 /*********** PAYTABLE ********************/
-// Multipliers for x1, x2, x3, x4, or x5 combos
 var PAYTABLE_VALUES = [ 
-    [0,0,2,10,40],    // Symbol 0
-    [0,0,2,10,40],    // Symbol 1
-    [0,0,5,15,80],    // Symbol 2
-    [0,0,10,30,150],  // Symbol 3
-    [0,0,20,50,250],  // Symbol 4
-    [0,0,25,70,400],  // Symbol 5
-    [0,0,50,150,1000] // Symbol 6 (ZEUS JACKPOT)
+    [0,0,2,10,40],    
+    [0,0,2,10,40],    
+    [0,0,5,15,80],    
+    [0,0,10,30,150],  
+    [0,0,20,50,250],  
+    [0,0,25,70,400],  
+    [0,0,50,150,1000] 
 ];
 
 /*************************************/
@@ -54,6 +57,16 @@ function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOw
         return;
     }
 
+    // --- INTERSTITIAL AD TRIGGER ---
+    iSpinCounter++;
+    if (iSpinCounter >= AD_SHOW_EVERY_X_SPINS) {
+        iSpinCounter = 0; 
+        if (typeof parent.__showInterstitial !== "undefined") {
+            parent.__showInterstitial(); 
+        }
+    }
+    // -------------------------------
+
     TOTAL_MONEY -= iCurBet;
     SLOT_CASH += iCurBet;
     TOTAL_MONEY = parseFloat(TOTAL_MONEY.toFixed(2));
@@ -63,7 +76,6 @@ function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOw
     var bFreespin = false;
     var oData;
 
-    // IF SLOT CASH IS LOWER THAN MINIMUM WIN, PLAYER MUST LOSE
     if (SLOT_CASH < _iMinWin * iCoin) {
         generLosingPattern();
         if (_bFreespinEnable === true) {
@@ -85,7 +97,6 @@ function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOw
     var iRandOccur = Math.floor(Math.random() * 100);
     var iRand;
     if (iRandOccur < WIN_OCCURRENCE) {
-        // WINNING LOGIC
         if (_bFreespinEnable === false && _bBonus === false) {
             iRand = Math.floor(Math.random() * 100);
             if (_iTotFreeSpin === 0 && iRand < (FREESPIN_OCCURRENCE + BONUS_OCCURRENCE)) {
@@ -138,7 +149,6 @@ function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOw
         oCallback.call(oCallbackOwner, oData);
         return;
     } else {
-        // LOSE LOGIC
         generLosingPattern();
         if (_bFreespinEnable === true) {
             _iTotFreeSpin--;
@@ -161,24 +171,16 @@ function apiAttemptBonus(iCoin, oCallback, oCallbackOwner) {
     var aPrizeLength = new Array();
     for (var k = 0; k < BONUS_PRIZE_OCCURRENCE.length; k++) {
         var iCount = BONUS_PRIZE_OCCURRENCE[k];
-        for (var j = 0; j < iCount; j++) {
-            aPrizeLength.push(k);
-        }
+        for (var j = 0; j < iCount; j++) { aPrizeLength.push(k); }
     }
-
     var iRandNumMultipliers = Math.floor(Math.random() * MAX_PRIZES_BONUS) + 1;
     var aPrizeList = new Array();
     var iTotWin = 0;
-
     for (var k = 0; k < iRandNumMultipliers; k++) {
         var iRandIndex = Math.floor(Math.random() * (aPrizeLength.length));
         var iPrizeReceived = aPrizeLength[iRandIndex];
         var iBonusWin = (BONUS_PRIZE[iPrizeReceived] * iCoin);
-
-        if (iTotWin + iBonusWin > SLOT_CASH) {
-            iBonusWin = 0;
-        }
-
+        if (iTotWin + iBonusWin > SLOT_CASH) { iBonusWin = 0; }
         iTotWin += iBonusWin;
         aPrizeList.push(iBonusWin);
         TOTAL_MONEY += iBonusWin;
@@ -186,12 +188,7 @@ function apiAttemptBonus(iCoin, oCallback, oCallbackOwner) {
         TOTAL_MONEY = parseFloat(TOTAL_MONEY.toFixed(2));
         SLOT_CASH = parseFloat(SLOT_CASH.toFixed(2));
     }
-
-    if (aPrizeList.length === 0) {
-        aPrizeList = [0];
-        iTotWin = 0;
-    }
-
+    if (aPrizeList.length === 0) { aPrizeList = [0]; iTotWin = 0; }
     var oData = { res: true, money: TOTAL_MONEY, bonus_win: iTotWin, prize_list: JSON.stringify(aPrizeList) };
     oCallback.call(oCallbackOwner, oData);
 }
@@ -205,36 +202,28 @@ function checkWin(bFreespin, iNumBettingLines) {
         var iNumEqualSymbol = 1;
         var iStartIndex = 1;
         aCellList.push({ row: aCombos[0]['row'], col: aCombos[0]['col'], value: _aFinalSymbols[aCombos[0]['row']][aCombos[0]['col']] });
-
         while (iValue === WILD_SYMBOL && iStartIndex < NUM_REELS) {
             iNumEqualSymbol++;
             iValue = _aFinalSymbols[aCombos[iStartIndex]['row']][aCombos[iStartIndex]['col']];
             aCellList.push({ row: aCombos[iStartIndex]['row'], col: aCombos[iStartIndex]['col'], value: _aFinalSymbols[aCombos[iStartIndex]['row']][aCombos[iStartIndex]['col']] });
             iStartIndex++;
         }
-
         for (var t = iStartIndex; t < aCombos.length; t++) {
             if (_aFinalSymbols[aCombos[t]['row']][aCombos[t]['col']] === iValue || _aFinalSymbols[aCombos[t]['row']][aCombos[t]['col']] === WILD_SYMBOL) {
                 iNumEqualSymbol++;
                 aCellList.push({ row: aCombos[t]['row'], col: aCombos[t]['col'], value: _aFinalSymbols[aCombos[t]['row']][aCombos[t]['col']] });
-            } else {
-                break;
-            }
+            } else { break; }
         }
-
         if (_aSymbolWin[iValue][iNumEqualSymbol - 1] > 0 && !(bFreespin && iValue === FREESPIN_SYMBOL) && !(_bBonus && iValue === BONUS_SYMBOL)) {
             aCellList.sort(sortListByCol);
             _aWinningLine.push({ line: k + 1, amount: _aSymbolWin[iValue][iNumEqualSymbol - 1], num_win: iNumEqualSymbol, value: iValue, list: aCellList });
         }
     }
-
     if (bFreespin) {
         aCellList = new Array();
         for (var i = 0; i < NUM_ROWS; i++) {
             for (var j = 0; j < NUM_REELS; j++) {
-                if (_aFinalSymbols[i][j] === FREESPIN_SYMBOL) {
-                    aCellList.push({ row: i, col: j, value: FREESPIN_SYMBOL });
-                }
+                if (_aFinalSymbols[i][j] === FREESPIN_SYMBOL) { aCellList.push({ row: i, col: j, value: FREESPIN_SYMBOL }); }
             }
         }
         aCellList.sort(sortListByCol);
@@ -243,9 +232,7 @@ function checkWin(bFreespin, iNumBettingLines) {
         var aCellList = new Array();
         for (var i = 0; i < NUM_ROWS; i++) {
             for (j = 0; j < NUM_REELS; j++) {
-                if (_aFinalSymbols[i][j] === BONUS_SYMBOL) {
-                    aCellList.push({ row: i, col: j, value: BONUS_SYMBOL });
-                }
+                if (_aFinalSymbols[i][j] === BONUS_SYMBOL) { aCellList.push({ row: i, col: j, value: BONUS_SYMBOL }); }
             }
         }
         aCellList.sort(sortListByCol);
@@ -266,7 +253,6 @@ function generateRandomSymbols(bFreespin) {
             } while (iRandSymbol === BONUS_SYMBOL || iRandSymbol === FREESPIN_SYMBOL);
         }
     }
-
     if (bFreespin) {
         var aTmp = new Array();
         for (i = 0; i < _iFreespinSymbolNumOccur.length; i++) {
@@ -294,26 +280,19 @@ function generateRandomSymbols(bFreespin) {
 function generLosingPattern() {
     var aFirstCol = new Array();
     for (var i = 0; i < NUM_ROWS; i++) {
-        do {
-            var iRandIndex = Math.floor(Math.random() * (s_aRandSymbols.length));
-        } while (s_aRandSymbols[iRandIndex] === BONUS_SYMBOL || s_aRandSymbols[iRandIndex] === FREESPIN_SYMBOL || s_aRandSymbols[iRandIndex] === WILD_SYMBOL);
-        var iRandSymbol = s_aRandSymbols[iRandIndex];
-        aFirstCol[i] = iRandSymbol;
+        do { var iRandIndex = Math.floor(Math.random() * (s_aRandSymbols.length)); } 
+        while (s_aRandSymbols[iRandIndex] === BONUS_SYMBOL || s_aRandSymbols[iRandIndex] === FREESPIN_SYMBOL || s_aRandSymbols[iRandIndex] === WILD_SYMBOL);
+        aFirstCol[i] = s_aRandSymbols[iRandIndex];
     }
-
-    var iNumBonus = 0;
-    var iNumFreeSpins = 0;
+    var iNumBonus = 0; var iNumFreeSpins = 0;
     _aFinalSymbols = new Array();
     for (var i = 0; i < NUM_ROWS; i++) {
         _aFinalSymbols[i] = new Array();
         for (var j = 0; j < NUM_REELS; j++) {
-            if (j == 0) {
-                _aFinalSymbols[i][j] = aFirstCol[i];
-            } else {
-                do {
-                    iRandIndex = Math.floor(Math.random() * s_aRandSymbols.length);
-                    iRandSymbol = s_aRandSymbols[iRandIndex];
-                } while (aFirstCol[0] === iRandSymbol || aFirstCol[1] === iRandSymbol || aFirstCol[2] === iRandSymbol ||
+            if (j == 0) { _aFinalSymbols[i][j] = aFirstCol[i]; } 
+            else {
+                do { iRandIndex = Math.floor(Math.random() * s_aRandSymbols.length); iRandSymbol = s_aRandSymbols[iRandIndex]; } 
+                while (aFirstCol[0] === iRandSymbol || aFirstCol[1] === iRandSymbol || aFirstCol[2] === iRandSymbol ||
                     (iRandSymbol === BONUS_SYMBOL && iNumBonus === 2) || (iRandSymbol === FREESPIN_SYMBOL && iNumFreeSpins === 2) || iRandSymbol === WILD_SYMBOL);
                 _aFinalSymbols[i][j] = iRandSymbol;
                 if (iRandSymbol === BONUS_SYMBOL) { iNumBonus++; } else if (iRandSymbol === FREESPIN_SYMBOL) { iNumFreeSpins++; }
@@ -323,46 +302,25 @@ function generLosingPattern() {
     return _aFinalSymbols;
 };
 
-function refreshCredit(iCredit, oCallback, oCallbackOwner) {
-    TOTAL_MONEY = iCredit;
-    oCallback.call(oCallbackOwner, TOTAL_MONEY);
-};
-
+function refreshCredit(iCredit, oCallback, oCallbackOwner) { TOTAL_MONEY = iCredit; oCallback.call(oCallbackOwner, TOTAL_MONEY); };
 function formatEntries(iValue) { return iValue.toFixed(2); }
-
-function _dieError(szReason, oCallback, oCallbackOwner) {
-    var oData = "res=false&desc=" + szReason;
-    oCallback.call(oCallbackOwner, oData);
-}
-
-function sortListByCol(a, b) {
-    if (a.col < b.col) return -1;
-    if (a.col > b.col) return 1;
-    return 0;
-};
+function _dieError(szReason, oCallback, oCallbackOwner) { oCallback.call(oCallbackOwner, "res=false&desc=" + szReason); }
+function sortListByCol(a, b) { if (a.col < b.col) return -1; if (a.col > b.col) return 1; return 0; };
 
 function _initSymbolWin() {
     _aSymbolWin = new Array();
     for (var i = 0; i < PAYTABLE_VALUES.length; i++) {
         _aSymbolWin[i] = new Array();
-        for (var j = 0; j < PAYTABLE_VALUES[i].length; j++) {
-            _aSymbolWin[i][j] = PAYTABLE_VALUES[i][j];
-        }
+        for (var j = 0; j < PAYTABLE_VALUES[i].length; j++) { _aSymbolWin[i][j] = PAYTABLE_VALUES[i][j]; }
     }
-    for (var k = PAYTABLE_VALUES.length; k < NUM_SYMBOLS; k++) {
-        _aSymbolWin[k] = [0, 0, 0, 0, 0];
-    }
+    for (var k = PAYTABLE_VALUES.length; k < NUM_SYMBOLS; k++) { _aSymbolWin[k] = [0, 0, 0, 0, 0]; }
 };
 
 function _setMinWin() {
     _iMinWin = 9999999999999;
     for (var i = 0; i < _aSymbolWin.length; i++) {
         var aTmp = _aSymbolWin[i];
-        for (var j = 0; j < aTmp.length; j++) {
-            if (aTmp[j] !== 0 && aTmp[j] < _iMinWin) {
-                _iMinWin = aTmp[j];
-            }
-        }
+        for (var j = 0; j < aTmp.length; j++) { if (aTmp[j] !== 0 && aTmp[j] < _iMinWin) { _iMinWin = aTmp[j]; } }
     }
 }
 
@@ -387,14 +345,8 @@ function _initPaylines() {
     _aPaylineCombo[17] = [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 2, col: 2 }, { row: 0, col: 3 }, { row: 0, col: 4 }];
     _aPaylineCombo[18] = [{ row: 2, col: 0 }, { row: 2, col: 1 }, { row: 0, col: 2 }, { row: 2, col: 3 }, { row: 2, col: 4 }];
     _aPaylineCombo[19] = [{ row: 0, col: 0 }, { row: 2, col: 1 }, { row: 2, col: 2 }, { row: 2, col: 3 }, { row: 0, col: 4 }];
-
     return _aPaylineCombo;
 };
 
-function _init() {
-    _initSymbolWin();
-    _aPaylineCombo = _initPaylines();
-    _setMinWin();
-}
-
+function _init() { _initSymbolWin(); _aPaylineCombo = _initPaylines(); _setMinWin(); }
 _init();
