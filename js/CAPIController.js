@@ -1,11 +1,11 @@
 var TOTAL_MONEY;
 var START_MONEY;
 
-// *********** BALANCED GAME MATHEMATICS ***********
+// *********** BALANSIRANA MATEMATIKA ***********
 var WIN_OCCURRENCE = 30;          
 var FREESPIN_OCCURRENCE = 15;     
 var BONUS_OCCURRENCE = 12;        
-var SLOT_CASH = 300;              // Lowered so they lose faster
+var SLOT_CASH = 100;              
 
 var NUM_FREESPIN = [5, 10, 15];   
 var BONUS_PRIZE = [10, 20, 30, 50, 100]; 
@@ -16,7 +16,7 @@ var _iCoinBets = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0];
 
 // --- AD SETTINGS ---
 var iSpinCounter = 0; 
-var AD_SHOW_EVERY_X_SPINS = 25; // Trigger full-screen ad every 25 spins
+var AD_SHOW_EVERY_X_SPINS = 10; 
 
 /*********** PAYTABLE ********************/
 var PAYTABLE_VALUES = [ 
@@ -42,7 +42,11 @@ var _iFreespinSymbolNumOccur = [50, 30, 20];
 var _aPaylineCombo = new Array();
 var _aFinalSymbols;
 
+// FUNKCIJA KOJA RESETUJE KREDIT NA 300 SVAKI PUT
 function APIgetSlotInfos(oCallback, oCallbackOwner) {
+    TOTAL_MONEY = 300; 
+    START_MONEY = 300;
+    
     oCallback.call(oCallbackOwner, {
         start_money: TOTAL_MONEY,
         bets: _iCoinBets,
@@ -51,13 +55,21 @@ function APIgetSlotInfos(oCallback, oCallbackOwner) {
     });
 }
 
+// NAGRADA ZA REWARD VIDEO (Pozivaš ovo iz AppCreator24)
+function API_rewardUser(iRewardAmount) {
+    TOTAL_MONEY += iRewardAmount;
+    SLOT_CASH += iRewardAmount; 
+    TOTAL_MONEY = parseFloat(TOTAL_MONEY.toFixed(2));
+    if(s_oGame !== null){ s_oGame.refreshMoney(TOTAL_MONEY); }
+}
+
 function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOwner) {
     if (iCurBet > TOTAL_MONEY) {
         _dieError("INVALID BET: " + iCurBet + ",money:" + TOTAL_MONEY, oCallback, oCallbackOwner);
         return;
     }
 
-    // --- INTERSTITIAL AD TRIGGER ---
+    // --- REKLAMA SVAKIH X SPINOVA ---
     iSpinCounter++;
     if (iSpinCounter >= AD_SHOW_EVERY_X_SPINS) {
         iSpinCounter = 0; 
@@ -65,7 +77,6 @@ function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOw
             parent.__showInterstitial(); 
         }
     }
-    // -------------------------------
 
     TOTAL_MONEY -= iCurBet;
     SLOT_CASH += iCurBet;
@@ -80,10 +91,7 @@ function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOw
         generLosingPattern();
         if (_bFreespinEnable === true) {
             _iTotFreeSpin--;
-            if (_iTotFreeSpin < 0) {
-                _iTotFreeSpin = 0;
-                _bFreespinEnable = false;
-            }
+            if (_iTotFreeSpin < 0) { _iTotFreeSpin = 0; _bFreespinEnable = false; }
         }
         oData = {
             res: true, win: false, pattern: _aFinalSymbols, win_lines: {},
@@ -95,34 +103,23 @@ function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOw
     }
 
     var iRandOccur = Math.floor(Math.random() * 100);
-    var iRand;
     if (iRandOccur < WIN_OCCURRENCE) {
         if (_bFreespinEnable === false && _bBonus === false) {
-            iRand = Math.floor(Math.random() * 100);
+            var iRand = Math.floor(Math.random() * 100);
             if (_iTotFreeSpin === 0 && iRand < (FREESPIN_OCCURRENCE + BONUS_OCCURRENCE)) {
                 iRand = Math.floor(Math.random() * (FREESPIN_OCCURRENCE + BONUS_OCCURRENCE) + 1);
-                if (iRand <= FREESPIN_OCCURRENCE) {
-                    bFreespin = true;
-                } else if (SLOT_CASH >= (BONUS_PRIZE[0] * iCoin)) {
-                    _bBonus = true;
-                } else {
-                    _bBonus = false;
-                }
+                if (iRand <= FREESPIN_OCCURRENCE) { bFreespin = true; } 
+                else if (SLOT_CASH >= (BONUS_PRIZE[0] * iCoin)) { _bBonus = true; }
             }
         }
 
-        var iPrizeReceived = -1;
         var iBonusWin = 0;
-        var iCont = 0;
         do {
             generateRandomSymbols(bFreespin);
             var aRet = checkWin(bFreespin, iNumBettingLines);
             var iTotWin = 0;
-            for (var i = 0; i < aRet.length; i++) {
-                iTotWin += aRet[i]['amount'];
-            }
+            for (var i = 0; i < aRet.length; i++) { iTotWin += aRet[i]['amount']; }
             iTotWin *= iCoin;
-            iCont++;
         } while (aRet.length === 0 || (iBonusWin + iTotWin) > SLOT_CASH || (iBonusWin + iTotWin) < iCurBet);
 
         TOTAL_MONEY += (iTotWin + iBonusWin);
@@ -135,27 +132,20 @@ function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOw
             _iTotFreeSpin = NUM_FREESPIN[_iNumSymbolFreeSpin - 3];
         } else if (_bFreespinEnable === true) {
             _iTotFreeSpin--;
-            if (_iTotFreeSpin < 0) {
-                _iTotFreeSpin = 0;
-                _bFreespinEnable = false;
-            }
+            if (_iTotFreeSpin < 0) { _iTotFreeSpin = 0; _bFreespinEnable = false; }
         }
 
         oData = {
             res: true, win: true, pattern: _aFinalSymbols, win_lines: aRet,
             money: TOTAL_MONEY, tot_win: iTotWin, freespin: bFreespin,
-            num_freespin: _iTotFreeSpin, bonus: _bBonus, bonus_prize: iPrizeReceived, cash: SLOT_CASH
+            num_freespin: _iTotFreeSpin, bonus: _bBonus, bonus_prize: -1, cash: SLOT_CASH
         };
         oCallback.call(oCallbackOwner, oData);
-        return;
     } else {
         generLosingPattern();
         if (_bFreespinEnable === true) {
             _iTotFreeSpin--;
-            if (_iTotFreeSpin < 0) {
-                _iTotFreeSpin = 0;
-                _bFreespinEnable = false;
-            }
+            if (_iTotFreeSpin < 0) { _iTotFreeSpin = 0; _bFreespinEnable = false; }
         }
         oData = {
             res: true, win: false, pattern: _aFinalSymbols, win_lines: {},
@@ -163,7 +153,6 @@ function APIAttemptSpin(iCurBet, iCoin, iNumBettingLines, oCallback, oCallbackOw
             bonus: false, bonus_prize: -1
         };
         oCallback.call(oCallbackOwner, oData);
-        return;
     }
 }
 
